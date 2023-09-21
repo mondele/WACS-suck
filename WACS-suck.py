@@ -1,20 +1,31 @@
-#!/home/jdwood/anaconda3/bin/python
+#!/usr/bin/env python3
 # coding=<UTF-8>
 
-#version 0.1
+"""
+#version 0.2
 # by John Wood -- for Tech Advance
 # This script takes a Wycliffe Associates Content Service (WACS) username and downloads all repos for that user
 # into the current directory (creating subdirectories for each repo as normal).
 #
 # It uses command-line git on the system, so that should be installed.
 # Usage python3 WACS-suck.py <username>
+"""
 
 #Import necessary python components
 
+import argparse
 import requests
 import json
 import os
 import sys
+
+parser = argparse.ArgumentParser(description="Download all repositories from a given user on WACS")
+parser.add_argument("username", help="Username on WACS")
+#parser.add_argument('--lang', dest='lang')
+
+args = parser.parse_args()
+
+BASEURL = "https://content.bibletranslationtools.org"
 
 arguments=sys.argv[1:]
 count_args=len(arguments)
@@ -31,16 +42,24 @@ if count_args!=1: #If there is not exactly one argument, fail with a usage remar
 
 userName=sys.argv[1]
 
+userURL = BASEURL + "/api/v1/users/search?q=" + userName
 
-testUrl = "https://content.bibletranslationtools.org/api/v1/users/"
+userResponse = requests.get(userURL)
 
-useUrl = testUrl + userName + "/repos"
+userID = json.loads(userResponse.content)["data"][0]["id"]
 
-response = requests.get(useUrl)
+print("WACS user ",userName," has user ID ",userID,"\n")
 
-myObj = json.loads(response.content)
+pageNumber = 1
+pleaseLoop = True
 
-for repo in myObj:
-    cloneCommand = 'git clone ' + repo["clone_url"]
-#    os.system(cloneCommand)
-    print(cloneCommand)
+while pleaseLoop:
+    cloneURLRequest = BASEURL+"/api/v1/repos/search?uid="+str(userID)+"&page="+str(pageNumber)
+    newResponse = requests.get(cloneURLRequest)
+    newContent = (json.loads(newResponse.content))
+    if len(newContent["data"]) == 0:
+        break
+    for record in newContent["data"]:
+        cloneCommand = 'git clone ' + record["clone_url"]
+        os.system(cloneCommand)
+    pageNumber += 1
